@@ -3,8 +3,12 @@ import { getConfig } from "@/lib/config";
 import {
   createDraft,
   processContentImages,
-  uploadImage,
 } from "@/lib/wechat";
+import {
+  generateCoverFromImage,
+  generateDefaultCover,
+  uploadCoverImage,
+} from "@/lib/cover";
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,7 +20,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { title, content, author } = await request.json();
+    const { title, content, author, coverUrl } = await request.json();
 
     if (!title || !content) {
       return NextResponse.json(
@@ -29,21 +33,21 @@ export async function POST(request: NextRequest) {
     const { html: processedContent, firstImageUrl } =
       await processContentImages(content);
 
-    // Step 2: Get a thumb media_id for the article cover
-    let thumbMediaId: string;
+    // Step 2: Generate and upload cover image (900x383, WeChat required ratio)
+    let coverBuffer: Buffer;
 
-    if (firstImageUrl) {
-      // Use the first image as the cover
-      try {
-        thumbMediaId = await uploadImage(firstImageUrl);
-      } catch {
-        // If first image upload fails, try to create a simple cover
-        thumbMediaId = await createDefaultThumb();
-      }
+    if (coverUrl) {
+      // User provided a custom cover URL
+      coverBuffer = await generateCoverFromImage(coverUrl, title);
+    } else if (firstImageUrl && !firstImageUrl.startsWith("data:")) {
+      // Use the first image from article content, crop to cover ratio
+      coverBuffer = await generateCoverFromImage(firstImageUrl, title);
     } else {
-      // No images in article — create a default cover
-      thumbMediaId = await createDefaultThumb();
+      // No images — generate a default cover with the title
+      coverBuffer = await generateDefaultCover(title);
     }
+
+    const thumbMediaId = await uploadCoverImage(coverBuffer);
 
     // Step 3: Create draft
     const mediaId = await createDraft({
@@ -64,38 +68,4 @@ export async function POST(request: NextRequest) {
       error instanceof Error ? error.message : "推送失败";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
-
-/**
- * Create a minimal default cover image and upload it.
- * Generates a simple colored rectangle as PNG.
- */
-async function createDefaultThumb(): Promise<string> {
-  const config = await getConfig();
-  if (!config) throw new Error("未配置公众号信息");
-
-  const tokenUrl = `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${config.appId}&secret=${config.appSecret}`;
-  const tokenRes = await fetch(tokenUrl);
-  const tokenData = await tokenRes.json();
-  if (tokenData.errcode) {
-    throw new Error(`获取 token 失败: ${tokenData.errmsg}`);
-  }
-  const token = tokenData.access_token;
-
-  // Create a minimal 1x1 green PNG (base64 encoded)
-  const pngBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-  const pngBuffer = Buffer.from(pngBase64, "base64");
-
-  const formData = new FormData();
-  formData.append("media", new Blob([pngBuffer], { type: "image/png" }), "cover.png");
-
-  const uploadUrl = `https://api.weixin.qq.com/cgi-bin/material/add_material?access_token=${token}&type=image`;
-  const uploadRes = await fetch(uploadUrl, { method: "POST", body: formData });
-  const uploadData = await uploadRes.json();
-
-  if (uploadData.errcode) {
-    throw new Error(`上传默认封面失败: ${uploadData.errmsg}`);
-  }
-
-  return uploadData.media_id;
 }

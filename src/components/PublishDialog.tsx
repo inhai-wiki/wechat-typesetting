@@ -16,6 +16,7 @@ export default function PublishDialog({
   htmlContent,
 }: PublishDialogProps) {
   const [author, setAuthor] = useState("");
+  const [coverUrl, setCoverUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
@@ -33,6 +34,7 @@ export default function PublishDialog({
           title,
           content: htmlContent,
           author: author.trim(),
+          coverUrl: coverUrl.trim() || undefined,
         }),
       });
 
@@ -84,6 +86,21 @@ export default function PublishDialog({
                 placeholder="作者名称"
                 autoFocus
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                封面图片（可选）
+              </label>
+              <input
+                type="url"
+                value={coverUrl}
+                onChange={(e) => setCoverUrl(e.target.value)}
+                className="w-full px-3 py-2 border border-stone-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="留空则自动使用文章首图或生成封面"
+              />
+              <p className="mt-1 text-xs text-gray-400">
+                微信要求封面比例 2.35:1，系统会自动裁剪
+              </p>
             </div>
           </div>
 

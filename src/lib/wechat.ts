@@ -2,7 +2,7 @@ import { getConfig } from "./config";
 
 let cachedToken: { token: string; expiresAt: number } | null = null;
 
-async function getAccessToken(): Promise<string> {
+export async function getAccessToken(): Promise<string> {
   const config = await getConfig();
   if (!config) {
     throw new Error("请先配置公众号 AppID 和 AppSecret");
