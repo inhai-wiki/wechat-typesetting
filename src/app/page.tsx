@@ -184,6 +184,7 @@ export default function Home() {
                 </svg>
               </button>
             </div>
+          </div>
 
           {/* Tabs */}
           <div className="flex gap-1 -mb-px">
