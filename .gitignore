@@ -39,3 +39,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local data (contains API secrets and user templates)
+data/config.json
+data/templates/
+
+# archives
+*.zip
